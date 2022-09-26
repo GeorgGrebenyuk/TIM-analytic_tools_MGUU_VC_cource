@@ -14,4 +14,4 @@
 4. PostgreSQL (client);
 
 ## Вспомогательные материалы
-Методическое пособие по IfcOpenShell (см. релизы)
+Методическое пособие по IfcOpenShell (см. релизы - https://github.com/GeorgGrebenyuk/TIM-analytic_tools_MGUU_VC_cource/releases/tag/IfcOpenShell_guide)
