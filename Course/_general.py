@@ -9,39 +9,48 @@ import uuid
 import ifcopenshell
 import time
 import tempfile
+import xml.etree.ElementTree as _xml
+
 
 class mguu_cource_tools:
     """
     Получение файлового пути к примеру файла модели с проверкой его существования.
     В противном случае возврат None
     """
+
     @staticmethod
-    def get_example_file_path (ex_file_name):
+    def get_example_file_path(ex_file_name):
         file_dir = os.path.dirname(__file__)
-        ifc_file_path = os.path.join(file_dir , '../DataExamples/' + ex_file_name)
+        ifc_file_path = os.path.join(file_dir, '../DataExamples/' + ex_file_name)
         ifc_file_path = os.path.abspath(os.path.realpath(ifc_file_path))
         if os.path.exists(ifc_file_path):
             return ifc_file_path
         else:
             return None
+
     """
     Преобразование GUID в UUID
     """
+
     @staticmethod
-    def convert_uuid_to_guid (guid_input):
+    def convert_uuid_to_guid(guid_input):
         expanded = uuid.UUID('{' + str(guid_input) + '}')
         compressed = ifcopenshell.guid.compress(expanded.hex)
         return compressed
+
     """
     Преобразование UUID в GUID (?)
     """
+
     @staticmethod
     def __convert_guid_to_uuid(uuid_input):
         uuid_object = uuid.UUID(uuid_input)
         return ifcopenshell.guid.expand(uuid_object)
+
     """
     Создание IFC файла из шаблона и возврат файлового пути к нему
     """
+
     @staticmethod
     def create_ifc_by_template():
         # IFC template creation
@@ -88,7 +97,7 @@ END-ISO-10303-21;
 
         # Write the template to a temporary file 
         file_dir = os.path.dirname(__file__)
-        ifc_file_path = os.path.join(file_dir , '../DataExamples/UsersCreated/' + filename)
+        ifc_file_path = os.path.join(file_dir, '../DataExamples/UsersCreated/' + filename)
         ifc_file_path = os.path.abspath(os.path.realpath(ifc_file_path))
         with open(ifc_file_path, "w") as f:
             f.write(template)
@@ -96,30 +105,30 @@ END-ISO-10303-21;
         return ifc_file_path
 
     @staticmethod
-    #Создание уникального идентификатора (UUID) для новых элементов
+    # Создание уникального идентификатора (UUID) для новых элементов
     def create_guid():
         return ifcopenshell.guid.compress(uuid.uuid1().hex)
 
-    #Получение объектных свойств из сущности
+    # Получение объектных свойств из сущности
     @staticmethod
     def get_object_properties(ifc_entity):
         out_props = dict()
-        #IfcRelDefinesByProperties
+        # IfcRelDefinesByProperties
         ifc_props_root = ifc_entity.IsDefinedBy
         for props_group in ifc_props_root:
-            #print(props_group)
+            # print(props_group)
             props_definition = props_group.RelatingPropertyDefinition
             if props_definition.is_a("IfcPropertySet"):
-                #print("IfcPropertySet")
+                # print("IfcPropertySet")
                 for props_definition_prop in props_definition.HasProperties:
-                    #print(props_definition_prop)
+                    # print(props_definition_prop)
                     if props_definition_prop.is_a("IfcPropertySingleValue"):
                         out_props[props_definition_prop.Name] = props_definition_prop.NominalValue
-                        #print(str(props_definition_prop.Name) + ' ' + str(props_definition_prop.NominalValue))
+                        # print(str(props_definition_prop.Name) + ' ' + str(props_definition_prop.NominalValue))
             elif props_definition.is_a("IfcElementQuantity"):
-                #print("IfcElementQuantity")
+                # print("IfcElementQuantity")
                 for one_quantity in props_definition.Quantities:
-                    #print(one_quantity)
+                    # print(one_quantity)
                     if one_quantity.is_a("IfcQuantityArea"):
                         out_props[one_quantity.Name] = one_quantity.AreaValue
                     elif one_quantity.is_a("IfcQuantityCount"):
@@ -132,14 +141,15 @@ END-ISO-10303-21;
                         out_props[one_quantity.Name] = one_quantity.VolumeValue
                     elif one_quantity.is_a("IfcQuantityWeight"):
                         out_props[one_quantity.Name] = one_quantity.WeightValue
-        return out_props 
-    
-    #Получение словаря по уровням со значением свойства по его имени
+        return out_props
+
+        # Получение словаря по уровням со значением свойства по его имени
+
     @staticmethod
     def get_info_by_storeys_of_class(ifcfile, ifc_class_name, property_name):
         out_info = dict()
         ifc_storeys = ifcfile.by_type("IfcBuildingStorey")
-        ifc_storeys.sort(key= lambda a:a.Name)
+        ifc_storeys.sort(key=lambda a: a.Name)
         for one_storey in ifc_storeys:
             temp_prop_value = 0.0
             storey_objects = one_storey.ContainsElements[0].RelatedElements
@@ -150,3 +160,43 @@ END-ISO-10303-21;
                     temp_prop_value += prop_value
             out_info[one_storey.Name] = temp_prop_value
         return out_info
+
+    # Получение триангуляции поверхности из Landxml файла для PostgreSQL - TIN Z
+    @staticmethod
+    def get_pgsql_tin_by_landxml_surface(surface_as_xml):
+        ns_xmlns = "{http://www.landxml.org/schema/LandXML-1.2}"
+        surface_as_xml = surface_as_xml.find(ns_xmlns + "Definition")
+        pnts_block = surface_as_xml.find(ns_xmlns + "Pnts")
+        pnts_collection_xml = pnts_block.findall(ns_xmlns + "P")
+        pnts_collection = dict()
+        for point_xml in pnts_collection_xml:
+            p_number = point_xml.attrib["id"]
+            p_coords = point_xml.text.split(' ')
+            # Инвертируем очередность координат из-за спецификации LandXML
+            pnts_collection[p_number] = str(p_coords[1]) + " " + str(p_coords[0]) + " " + str(p_coords[2])
+        faces_block = surface_as_xml.find(ns_xmlns + "Faces")
+        faces_collection_xml = faces_block.findall(ns_xmlns + "F")
+        triangles_definition = list()
+        for face_xml in faces_collection_xml:
+            triangle_definition_points = list()
+            points_indexes = face_xml.text.split(' ')
+            points_indexes.append(points_indexes[0])
+            for point_index in points_indexes:
+                p_coord = pnts_collection[point_index]
+                triangle_definition_points.append(p_coord)
+            triangle_definition_temp = "((" + ",".join(triangle_definition_points) + "))"
+            triangles_definition.append(triangle_definition_temp)
+        result_tinz_definition = "TIN Z (" + ",".join(triangles_definition) + ")"
+        return result_tinz_definition
+
+    # Функция записи табличного представления данных в файл
+    @staticmethod
+    def write_to_file(save_name_file, table_to_record):
+        file_dir = os.path.dirname(__file__)
+        save_path = os.path.join(file_dir, '../DataExamples/UsersCreated/' + save_name_file + ".txt")
+        save_path = os.path.abspath(os.path.realpath(save_path))
+        with open(save_path, "w", encoding="utf8") as _file:
+            for table_row in table_to_record:
+                temp_table_row_string = '|'.join(str(row_element) for row_element in table_row)
+                _file.write(temp_table_row_string + "\n")
+        pass

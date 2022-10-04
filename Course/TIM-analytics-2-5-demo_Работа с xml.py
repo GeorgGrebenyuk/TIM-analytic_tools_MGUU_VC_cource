@@ -14,6 +14,7 @@ from _general import mguu_cource_tools
 
 import xml.etree.ElementTree as _xml
 
+
 xml_file = _xml.parse(mguu_cource_tools.get_example_file_path("Landxml_example_surfaces.xml"))
 ns_xmlns = "{http://www.landxml.org/schema/LandXML-1.1}"
 xml_surfaces_block = xml_file.find(ns_xmlns + "Surfaces")
