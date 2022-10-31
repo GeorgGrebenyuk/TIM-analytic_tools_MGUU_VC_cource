@@ -39,9 +39,6 @@ def getting_super_table_by_ifc(ifc_file_path):
     return df
 
 
-ifc_objects_data = getting_super_table_by_ifc(
-    r'C:\Users\Georg\Documents\GitHub\PyIfcOpenShell_cource\DataExamples\rme_advanced_sample_project.ifc')
+
+ifc_objects_data = mguu_cource_tools.getting_super_table_by_ifc(r'C:\Users\Georg\Documents\GitHub\PyIfcOpenShell_cource\DataExamples\rme_advanced_sample_project.ifc')
 #для записи в excel
-import openpyxl
-print("start record")
-ifc_objects_data.to_excel(r'C:\Users\Georg\Documents\GitHub\PyIfcOpenShell_cource\DataExamples\rme_advanced_sample_project_super_table.xlsx')

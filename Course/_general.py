@@ -10,7 +10,7 @@ import ifcopenshell
 import time
 import tempfile
 import xml.etree.ElementTree as _xml
-
+import pandas
 
 class mguu_cource_tools:
     """
@@ -208,3 +208,30 @@ END-ISO-10303-21;
                 temp_table_row_string = '|'.join(str(row_element) for row_element in table_row)
                 _file.write(temp_table_row_string + "\n")
         pass
+    #Получение супер-таблицы csv из файла IFC
+    @staticmethod
+    def getting_super_table_by_ifc(ifc_file_path):
+        ifc_file = ifcopenshell.open(ifc_file_path)
+        ifc_objects = ifc_file.by_type("IfcObject")
+        list_temp = list()
+        total_props_names = list()
+        for ifc_entity in ifc_objects:
+            temp_props = mguu_cource_tools.get_object_properties(ifc_entity)
+            list_temp.append(temp_props)
+            # merge props
+            current_names = temp_props.keys()
+            for key in current_names:
+                if key not in total_props_names:
+                    total_props_names.append(key)
+        out_data = dict()
+        for key in total_props_names:
+            out_data[key] = []
+        for entity_data in list_temp:
+            for pr in total_props_names:
+                if pr in entity_data.keys():
+                    out_data[pr].append(entity_data[pr])
+                else:
+                    out_data[pr].append(None)
+        df = pandas.DataFrame(data=out_data, columns=total_props_names)
+        df.to_csv(ifc_file_path.replace(".ifc", ".csv"))
+        return 1
