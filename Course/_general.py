@@ -112,36 +112,44 @@ END-ISO-10303-21;
     # Получение объектных свойств из сущности
     @staticmethod
     def get_object_properties(ifc_entity):
-        out_props = dict()
-        # IfcRelDefinesByProperties
+        temp_props = {"IfcClass": ifc_entity.is_a(), "GlobalId": ifc_entity.GlobalId}
         ifc_props_root = ifc_entity.IsDefinedBy
         for props_group in ifc_props_root:
-            # print(props_group)
-            props_definition = props_group.RelatingPropertyDefinition
-            if props_definition.is_a("IfcPropertySet"):
-                # print("IfcPropertySet")
-                for props_definition_prop in props_definition.HasProperties:
-                    # print(props_definition_prop)
-                    if props_definition_prop.is_a("IfcPropertySingleValue"):
-                        out_props[props_definition_prop.Name] = props_definition_prop.NominalValue
-                        # print(str(props_definition_prop.Name) + ' ' + str(props_definition_prop.NominalValue))
-            elif props_definition.is_a("IfcElementQuantity"):
-                # print("IfcElementQuantity")
-                for one_quantity in props_definition.Quantities:
-                    # print(one_quantity)
-                    if one_quantity.is_a("IfcQuantityArea"):
-                        out_props[one_quantity.Name] = one_quantity.AreaValue
-                    elif one_quantity.is_a("IfcQuantityCount"):
-                        out_props[one_quantity.Name] = one_quantity.CountValue
-                    elif one_quantity.is_a("IfcQuantityLength"):
-                        out_props[one_quantity.Name] = one_quantity.LengthValue
-                    elif one_quantity.is_a("IfcQuantityTime"):
-                        out_props[one_quantity.Name] = one_quantity.TimeValue
-                    elif one_quantity.is_a("IfcQuantityVolume"):
-                        out_props[one_quantity.Name] = one_quantity.VolumeValue
-                    elif one_quantity.is_a("IfcQuantityWeight"):
-                        out_props[one_quantity.Name] = one_quantity.WeightValue
-        return out_props
+            if props_group.is_a("IfcRelDefinesByProperties"):
+                props_definition = props_group.RelatingPropertyDefinition
+
+                def get_prop_data(props_array):
+                    for ps in props_array:
+                        p_name = ps.Name
+
+                        # print(p_name)
+
+                        def check_prop(check_value):
+                            if check_value is not None:
+                                if isinstance(check_value, (int, float, bool, str)):
+                                    temp_props[p_name] = check_value
+                                elif isinstance(check_value, (tuple, list)):
+                                    ...
+                                else:
+                                    try:
+                                        d_new = check_value.get_info()
+                                    except():
+                                        print(check_value)
+                                    for k2, v2 in d_new.items():
+                                        check_prop(v2)
+                            pass
+
+                        for k1, v1 in ps.get_info().items():
+                            check_prop(v1)
+                    pass
+
+                # property sets
+                if props_definition.is_a("IfcPropertySet"):
+                    get_prop_data(props_definition.HasProperties)
+                # qto
+                if props_definition.is_a("IfcElementQuantity"):
+                    get_prop_data(props_definition.Quantities)
+        return temp_props
 
         # Получение словаря по уровням со значением свойства по его имени
 
